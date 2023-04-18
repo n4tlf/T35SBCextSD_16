@@ -495,13 +495,6 @@ assign  memWR = (!z80_n_wr & !z80_n_mreq);   // create the basic memory WRITE st
 assign  romDisable = miscControl[1];
 assign  romHigh = (miscControl[0] | miscControl[2]);
 
-assign  intVectToCPU_cs = (s100_sINTA & !inEnableINTA);    // Enables interrupt vector write to CPU Data IN
-////    INT Level  =  sOUT_INTA  AND NOT enable jumper (low->high) NOTE: s100_INTA HAD DELAYS IN JOHNS BDF  //////////////   BOTTOM OR GATE  ACTIVE LOW
-////     =H for vector  ____|-----   L=Enable, H=disable 
-
-assign  z80_n_boardInt = (IntEncGs | inEnableINTA);     // & s100_n_INT;        ////////////////////////////////////////////////////////////////////
-////  Actual INT->Z80(low) = (Gs(low) or enable jmpr (low)) & bus INTs 
-
 
 assign boardWait = (romWait & ioWait);
 assign buzzer = !startBuzzer;
@@ -1264,7 +1257,6 @@ dff     PtrAck(                        // Printer acknowledgement latch
 /************************************************************************************
 *   BUZZER output   Port 00 OUT (any bits)                                          *
 ************************************************************************************/
-
 dff     buzzerStart(                     // 
         .clk    (pll0_250MHz),
         .en        (buzzerOut_cs), 
@@ -1279,7 +1271,7 @@ dff     buzzerRun(
         .din        (startBuzzer),
         .q          (runBuzzer));
 
- dff   buzzerEnd(
+dff   buzzerEnd(
         .clk    (pll0_250MHz),
         .en        (counter[14]),
         .rst_n      (n_reset),       //(!stopBuzzer),     
@@ -1287,6 +1279,7 @@ dff     buzzerRun(
         .q          (stopBuzzer));
 
         `define RTC
+        
         `ifdef RTC
 /************************************************************************************
 *   Real Time Clock via SPI                                                         *
@@ -1298,7 +1291,7 @@ spi_16bit_master
         rtcSPI(
         .clock      (!counter[4]),               // system clock (counter[4])
         .reset_n    (n_reset),                  // asynchronous reset
-        .enable     (RTCWrite | RTCRead), // initiate transaction
+        .enable     (RTCWrite | RTCRead),       // initiate transaction
         .cpol       (1'b1),                     // spi clock polarity
         .cpha       (1'b1),                     // spi clock phase
         .cont       (1'b0),                     // continuous mode command
@@ -1425,6 +1418,7 @@ dff   RTCSpiRead2(
 wire    [7:0]   intsInLatch;    // Latched INPUT Interrupt Vectors
 wire    [7:0]   encoderIn;      // rewired for Interrupt encoder input
 wire    [7:0]   intsOutLatch;   // Latched priority encoder OUTPUT
+reg             intVec_cs;
 //    wire    [7:0]   intsIn;         // Interrupts in to latch 
 //    wire    [7:0]   intsLatched;    // Latched interrupts to encoder
 //    wire    [7:0]   intsToCpu;      // encoded interrupt vector to CPU
@@ -1433,6 +1427,18 @@ wire    [7:0]   intsOutLatch;   // Latched priority encoder OUTPUT
 //    wire            z80_n_boardInt; // interrupt signal out to Z80 CPU
 //    wire            intsGs;         // an interrupt vector has been created
 //    reg             z80_n_Enable;  // enable the Z80 int pin or not
+
+//assign  intVectToCPU_cs = (s100_sINTA & !inEnableINTA);    // Enables interrupt vector write to CPU Data IN
+////    INT Level  =  sOUT_INTA  AND NOT enable jumper (low->high) NOTE: s100_INTA HAD DELAYS IN JOHNS BDF  //////////////   BOTTOM OR GATE  ACTIVE LOW
+////     =H for vector  ___|--|___  L=Enable, H=disable 
+assign intVectToCPU_cs = intVec_cs;
+
+always @(posedge cpuClock) begin
+    intVec_cs <= (s100_sINTA & !inEnableINTA);
+    end
+
+assign  z80_n_boardInt = (IntEncGs | inEnableINTA);     // & s100_n_INT;        ////////////////////////////////////////////////////////////////////
+////  Actual INT->Z80(low) = (Gs(low) or enable jmpr (low)) & bus INTs 
 
 
 
