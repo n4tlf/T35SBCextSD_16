@@ -1,11 +1,14 @@
 /************************************************************************
-*   FILE:  T35SBCextSD_16_top.v    Ver .1    3/23/23                  	*
+*   FILE:  T35SBCextSD_16_top.v    Ver .3    3/23/23                  	*
 *                                                                     	*
 *	This project adds SD Card access via an eight-bit SPI Interface		*
 *		Work on several "fixes" were also created here first, before	*
 *		being applied to several earlier projects						*
 *   TFOX, N4TLF March 23, 2023   You are free to use it             	*
 *       however you like.  No warranty expressed or implied           	*
+*   TFOX, N4TLF, April 15, 2023     SD Card Interface working           *
+*   TFOX, N4TLF, April 28, 2023     Interrupt code Seems fine           *
+*   TFOX, N4TLF, April 29, 2023     RTC Seems to work, timing looks OK  *
 ************************************************************************/
 
 module  T35SBCextSD_16_top(
@@ -447,24 +450,21 @@ module  T35SBCextSD_16_top(
     wire        vgaRamReadData;
     
     
-//////////////////////////////////////  MISC TESTING/DEBUG STUFF    ////////////////////////////////////////
-assign boardActive = z80_n_boardInt;                                            //!pll0_LOCKED;   // LED is LOW to turn ON
+//////////////////////////////////////  MISC TESTING/DEBUG STUFF    ///////////////////////////////////////////////////////////////////////////////
+assign boardActive = RdWrFFClk; // READ/WRITE clock                                            //!pll0_LOCKED;   // LED is LOW to turn ON
 
 assign n_reset = s100_n_RESET;
 assign seg7 = 7'b0001110;               // The letter "F", Top segment is LSB
 assign seg7_dp = !(n_resetLatch & counter[20]); // Tick to show activity
-assign  cpuClkOut_P19 = Clkcpu;
+assign cpuClkOut_P19 = Clkcpu;
 
+assign  diagLED = rtcSpiSI;
 
-assign  diagLED = inEnableINTA;
+assign spare_P1  = rtcSpiCS;                  //rtcSpiClkIn;             // spiMasterClock input
+assign spare_P17 = rtcSpiClk;                         //rtcSpiClk;             // spi Clock Out
+assign spare_P32 = RTCRead;                          
+assign spare_P33 = RTCWrite;                    // Enable
 
-//  inEnableINTA    IS JP10 JUMPER TO ENABLE INTA
-//  z80_n_boardInt  IS ACTUAL SIGNAL TO Z80 CORE INT*
-
-assign spare_P1 = IntEncGs;
-assign spare_P17 = s100_n_INT;
-assign spare_P32 = s100_sINTA;      //DataToRTC7_0_cs;     //!spiBusyFlag;
-assign spare_P33 = intVectToCPU_cs;     //  Select line for INT to CPU DIMUX         //RTCWriteOut1;
 
 ////////////////////////////    TURN ON SBC BUFFERS FOR NOW
 assign F_add_oe = !F_in_sdsb;            // Address Bus enable  GPIOB_TXN17
@@ -1088,7 +1088,7 @@ uart  usbuart(
     .rst                (!n_reset),     // Synchronous reset.
     .rx 				(usbRXData),		// UART Input - Incoming serial line
     .tx 				(usbTXData),	    // UART output - Outgoing serial line
-    .transmit 			(usbTxDelay[2]), // Input to UART - Signal to transmit a byte = 1
+    .transmit 			(usbTxDelay[3]), // Input to UART - Signal to transmit a byte = 1
     .tx_byte 		    (usbTxData),    // UART input - Byte to transmit
     .received 			(usbByteRcvd),   // UART output - Indicates a byte has been rcvd
     .rx_byte 		    (usbRxData),     // UART OUTPUT - Byte received
@@ -1266,14 +1266,14 @@ dff     buzzerStart(                     //
         
 dff     buzzerRun(
         .clk    (pll0_250MHz),
-        .en        (!counter[14]),
+        .en        (!counter[17]),
         .rst_n      (n_reset),          //(!stopBuzzer),     
         .din        (startBuzzer),
         .q          (runBuzzer));
 
 dff   buzzerEnd(
         .clk    (pll0_250MHz),
-        .en        (counter[14]),
+        .en        (counter[17]),
         .rst_n      (n_reset),       //(!stopBuzzer),     
         .din        (runBuzzer),
         .q          (stopBuzzer));
@@ -1284,12 +1284,17 @@ dff   buzzerEnd(
 /************************************************************************************
 *   Real Time Clock via SPI                                                         *
 ************************************************************************************/
+wire    rtcSpiClkIn;
+wire    RdWrFFClk;
+
+assign  rtcSpiClkIn = !counter[4];
+assign  RdWrFFClk = !counter[8];
 
 spi_16bit_master    
     #(.slaves(4),
 	 .d_width(16))
         rtcSPI(
-        .clock      (!counter[4]),               // system clock (counter[4])
+        .clock      (rtcSpiClkIn),            //(!counter[4]),               // system clock (counter[4])
         .reset_n    (n_reset),                  // asynchronous reset
         .enable     (RTCWrite | RTCRead),       // initiate transaction
         .cpol       (1'b1),                     // spi clock polarity
@@ -1385,7 +1390,7 @@ dff    RTCSpiWrite1(
 
 dff   RTCSpiWrite2(
         .clk    (pll0_250MHz),
-        .en     (!counter[4]),
+        .en     (RdWrFFClk),
         .rst_n  (n_reset  & !spiBusyFlag),
         .din    (RTCWriteOut1),
         .q      (RTCWrite)
@@ -1401,7 +1406,7 @@ dff   RTCSpiRead1(
 
 dff   RTCSpiRead2(
         .clk     (pll0_250MHz),
-        .en      (!counter[4]),
+        .en      (RdWrFFClk),
         .rst_n   (n_reset  & !spiBusyFlag),
         .din     (RTCReadOut1),
         .q       (RTCRead)
@@ -1433,7 +1438,7 @@ reg             intVec_cs;
 ////     =H for vector  ___|--|___  L=Enable, H=disable 
 assign intVectToCPU_cs = intVec_cs;
 
-always @(posedge cpuClock) begin
+always @(posedge Clkcpu) begin                      //cpuClock) begin
     intVec_cs <= (s100_sINTA & !inEnableINTA);
     end
 
