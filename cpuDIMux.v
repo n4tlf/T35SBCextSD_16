@@ -1,5 +1,5 @@
 /********************************************************************
-*   FILE:   cpuDIMux.v      Ver 0.65        Oct. 12, 2022           *
+*   FILE:   cpuDIMux.v      Ver 0.7        April 12, 2023           *
 *                                                                   *
 *   This function selects which device's DATA OUT goes into the Z80 *
 *   CPU DATA INPUT bus at any given time. It uses the device's      *
@@ -17,6 +17,7 @@
 *       Ver 0.6 3/1/23  TFOX, added Printer and Buzzer              *
 *       Ver 0.65 3/11/23 TFOX, fixed nop on boot, and added generic *
 *           S100 I/O board support                                  *
+*		Ver 0.7 4/2023 TFOX		added vector interrupt and SD Card	*
 ********************************************************************/
 
 module cpuDIMux

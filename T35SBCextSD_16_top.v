@@ -451,11 +451,11 @@ module  T35SBCextSD_16_top(
     
     
 //////////////////////////////////////  MISC TESTING/DEBUG STUFF    ///////////////////////////////////////////////////////////////////////////////
-assign boardActive = RdWrFFClk; // READ/WRITE clock                                            //!pll0_LOCKED;   // LED is LOW to turn ON
+assign boardActive = !pll0_LOCKED;   // LED is LOW to turn ON
 
 assign n_reset = s100_n_RESET;
 assign seg7 = 7'b0001110;               // The letter "F", Top segment is LSB
-assign seg7_dp = !(n_resetLatch & counter[20]); // Tick to show activity
+assign seg7_dp = !(n_resetLatch & counter[18]); // Tick to show activity
 assign cpuClkOut_P19 = Clkcpu;
 
 assign  diagLED = rtcSpiSI;
@@ -638,7 +638,7 @@ assign  s100_sINTA = statusout[6];      //!n_inta;           //statusout[6];
 //assign  s100_pHLDA = controlOut[4];
 
 assign s100_PHANTOM = 0;
-assign s100PhantomLED = inEnableINTA;           //~s100_PHANTOM;              ////////////////////////////////////////////////////////////////
+assign s100PhantomLED = ~s100_PHANTOM;              ////////////////////////////////////////////////////////////////
 
 assign s100_ADSB = !statDisable;                // Address and Status Disable
 assign s100_CDSB = !ctlDisable;                 // Control Signals Disabe
