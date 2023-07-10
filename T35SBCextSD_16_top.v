@@ -16,7 +16,7 @@ module  T35SBCextSD_16_top(
     clockIn,            // 50MHz input from onboard oscillator
     pll0_LOCKED,
     pll0_2MHz,
-    pll0_25MHz,         // NOTE:  This also drives SBC_LEDs mux to 
+    pll0_50MHz,         // NOTE:  This also drives SBC_LEDs mux to 
                         // eliminate a build error
     pll0_250MHz,
                         // Next comes all the S100 bus signals
@@ -136,7 +136,7 @@ module  T35SBCextSD_16_top(
     input   clockIn;
     input   pll0_LOCKED;
     input   pll0_2MHz;
-    input   pll0_25MHz;
+    input   pll0_50MHz;
     input   pll0_250MHz;
     input   usbRXData;
  //   input   usbDTR;                 //////////////////////////////////////////////////////////////////////////////////////
@@ -376,6 +376,8 @@ module  T35SBCextSD_16_top(
     wire            IntEncGs;
     reg             kHz400;
     reg             MHz10;
+    reg             MHz25;
+    
 ////////////////////////////////////////////////////////////////////////////////////
     
     wire    outrama16_cs;
@@ -448,22 +450,27 @@ module  T35SBCextSD_16_top(
     wire        vgaRam_cs;
     wire        vgaRamWriteData;
     wire        vgaRamReadData;
+
     
     
 //////////////////////////////////////  MISC TESTING/DEBUG STUFF    ///////////////////////////////////////////////////////////////////////////////
-assign boardActive = !pll0_LOCKED;   // LED is LOW to turn ON
+//assign boardActive = !pll0_LOCKED;   // LED is LOW to turn ON
 
 assign n_reset = s100_n_RESET;
 assign seg7 = 7'b0001110;               // The letter "F", Top segment is LSB
 assign seg7_dp = !(n_resetLatch & counter[18]); // Tick to show activity
 assign cpuClkOut_P19 = Clkcpu;
 
-assign  diagLED = rtcSpiSI;
+assign  diagLED = cpuClock;
 
-assign spare_P1  = rtcSpiCS;                  //rtcSpiClkIn;             // spiMasterClock input
-assign spare_P17 = rtcSpiClk;                         //rtcSpiClk;             // spi Clock Out
-assign spare_P32 = RTCRead;                          
-assign spare_P33 = RTCWrite;                    // Enable
+assign spare_P1  = usbUARTerror;
+assign spare_P17 = usbByteRcvd;
+assign spare_P32 = usbBusyRcvg;                          
+assign spare_P33 = usbDataReady;
+assign usbRXbusyLED = !usbByteRcvd;
+assign usbTXbusyLED = !usbUARTbusy;
+assign usbCTS       = 1'b1;
+assign boardActive = inusbRxData_cs;   // LED is LOW to turn ON
 
 
 ////////////////////////////    TURN ON SBC BUFFERS FOR NOW
@@ -583,8 +590,9 @@ assign usbStat[4] = 1'b0;
 assign usbStat[5] = 1'b0;
 assign usbStat[6] = 1'b0;
 assign usbStat[7] = usbUARTerror;   // USB UART receive error
-assign usbRXbusyLED = !usbByteRcvd;
-assign usbTXbusyLED = !usbUARTbusy;
+//assign usbRXbusyLED = !usbByteRcvd;
+//assign usbTXbusyLED = !usbUARTbusy;
+//assign usbCTS       = 1'b1;
 
 /********************************************************************************
 *       Printer Port Status Register (IN C7)                                    *
@@ -657,6 +665,16 @@ assign debugReg[4] = s100_pDBIN;
 assign debugReg[5] = s100_sMEMR;
 assign debugReg[6] = s100_sINP;
 assign debugReg[7] = s100_sOUT;
+
+
+
+/****************************************************************************
+*       Make 25MHz clock from 50MHz PLL Output                              *
+****************************************************************************/
+always @(posedge pll0_50MHz)
+    begin
+        MHz25 <= !MHz25;
+    end
 
 /****************************************************************************
 *            Basic counter/divider based on 2MHz PLL Clock                  *
@@ -931,7 +949,7 @@ LedBarMux       lmux(
     .portFFDO       (out255[7:0]),              // if switches DN UP (10)   
 //    .debugreg   (debugReg[7:0]),        
     .sw         	(sw_IOBYTE[5:4]),
-    .pll0_25MHz    (pll0_25MHz),
+    .pll0_50MHz    (pll0_50MHz),
      //    .ram_cs,   
      .LEDoutData   (SBC_LEDs)   // INVERTED DATA OUT TO DRIVE LEDS!!!!!!
     );
@@ -1027,13 +1045,13 @@ dff3    jumptoRom(
 /********************************************************************************
 *   CPU Clock input Mux.  Selects one of four clock frequencies                 *
 ********************************************************************************/
-//assign cpuClock = pll0_25MHz;
+//assign cpuClock = pll0_50MHz;
 
 ClockMux    ClkMux(
     .MHz2        (pll0_2MHz),
-    .MHz25       (pll0_25MHz),
-    .KHz31       (counter[5]),      //(pll0_25MHz),
-    .Hz250       (counter[12]),     //pll0_2MHz),
+    .MHz50       (MHz25),
+    .KHz31       (counter[5]),
+    .Hz250       (counter[12]),
     .pll0_250MHz (pll0_250MHz),
     .sw          (sw_IOBYTE[7:6]), 
     .cpuclk      (cpuClock));
@@ -1084,11 +1102,11 @@ ShiftReg    usbTXdelay(
 *           From opencores                                                  *
 ****************************************************************************/
 uart  usbuart(
-    .clk                (clockIn),		// The master clock for this module 50MHz
+    .clk                (pll0_50MHz),		// The master clock for this module 50MHz
     .rst                (!n_reset),     // Synchronous reset.
     .rx 				(usbRXData),		// UART Input - Incoming serial line
     .tx 				(usbTXData),	    // UART output - Outgoing serial line
-    .transmit 			(usbTxDelay[3]), // Input to UART - Signal to transmit a byte = 1
+    .transmit 			(usbTxDelay[2]), // Input to UART - Signal to transmit a byte = 1
     .tx_byte 		    (usbTxData),    // UART input - Byte to transmit
     .received 			(usbByteRcvd),   // UART output - Indicates a byte has been rcvd
     .rx_byte 		    (usbRxData),     // UART OUTPUT - Byte received
@@ -1139,7 +1157,19 @@ dff     kybdstatus(                 // was dff3
 /****************************************************************************************
 *       VGA VIDEO SECTION FOLLOWS  ADDED Starting 2/22/23                               *
 ****************************************************************************************/
-        
+
+/****************************************************************************************
+*       Divide 50MHz clock by 2 to create VGA 25MHz Clock                               *
+****************************************************************************************/
+/*
+always @(posedge pll0_50MHz) begin
+  if (!n_reset) begin
+    MHz25 <= 1'b0;
+  end
+  else 
+    MHz25 <= ~MHz25;
+end
+*/        
 /****************************************************************************************
 *   VGA font ROM        added 2/22/23                                                   *
 ****************************************************************************************/
@@ -1147,7 +1177,7 @@ rom  #(.ADDR_WIDTH(12),                    // set address width for chargen ROM
 	.RAM_INIT_FILE("rom.fonthex"))      //("VGA_FONT.inithex"))
     font_rom (
     .address    (fontAdr),
-	.clock      (pll0_25MHz),
+	.clock      (MHz25),
 	.data       (fontData));
     
 /****************************************************************************************
@@ -1164,13 +1194,13 @@ true_dual_port_ram
 	.din1       (cpuDataOut),
     .dout1      (ramVGAData[7:0]),      // RAM data OUT to CPU
 	.we1        (vgaRamWriteData),     // write data enable
-    .clka       (pll0_25MHz),
+    .clka       (MHz25),
                                     // Port 2 connected to VGA module
     .addr2      (textAdr),
     .din2       (8'b0),                 // VGA module does Not WRITE to RAM
     .dout2      (textData),            // RAM data out to VGA module (read-only)
     .we2        (1'b0),                 // VGA Module, no write necesssary (read-only) 
-    .clkb       (pll0_25MHz));
+    .clkb       (MHz25));
 
 /****************************************************************************************
 *       VGA 80x40 module.  There are at least three variants of this module, originally *
@@ -1182,7 +1212,7 @@ true_dual_port_ram
 
 vga80x40        vga(
     .reset      (!n_reset),     // NOTE:  this is a HIGH to reset
-    .clk25MHz   (pll0_25MHz),   // pixel clock, and other signal timing
+    .clk25MHz   (MHz25),   // pixel clock, and other signal timing
     .TEXT_A     (textAdr),      // Text Address OUT to dual-port RAM, address 2, 12 bits
     .TEXT_D     (textData),     // Text Data IN from dual-port RAM, port 2, 8 bits
 	.FONT_A     (fontAdr),      // font Address Out to FONT ROM Address in, 12 bits

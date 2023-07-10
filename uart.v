@@ -40,8 +40,9 @@ module uart(
 	 input  data_read
 	);
 
-//parameter CLOCK_DIVIDE = 1302; // clock rate (50Mhz) / (baud rate (9600) * 4)
-  parameter CLOCK_DIVIDE = 325;  // clock rate (50Mhz) / (baud rate (38400) * 4)
+//    parameter CLOCK_DIVIDE = ;  // clock rate (50MHz) / (baud rate (1200) * 4)
+parameter CLOCK_DIVIDE = 1303;       //1303; // clock rate (50Mhz) / (baud rate (9600) * 4)
+//  parameter CLOCK_DIVIDE = 325;  // clock rate (50Mhz) / (baud rate (38400) * 4)
 
 // States for the receiving state machine.
 // These are just constants, not parameters to override.
@@ -87,11 +88,11 @@ assign rx_byte = rx_data;
 assign data_ready = my_recv_state;
 
 
-assign tx = tx_out;
+//assign tx = tx_out;
 assign is_transmitting = tx_state != TX_IDLE;
 
 
-//assign tx = tx_out;
+assign tx = tx_out;
 
 always @(posedge clk) begin
 	if (rst) begin

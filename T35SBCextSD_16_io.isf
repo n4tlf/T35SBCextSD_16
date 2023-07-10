@@ -1,6 +1,6 @@
 # Efinity Interface Configuration
 # Version: 2022.1.226
-# Date: 2023-04-13 00:58
+# Date: 2023-06-09 00:38
 #
 # Copyright (C) 2017 - 2022 Efinix Inc. All rights reserved.
 #
@@ -194,9 +194,9 @@ design.set_property("spare_P1","DRIVE_STRENGTH","3")
 design.set_property("spare_P17","DRIVE_STRENGTH","3")
 design.set_property("spare_P32","DRIVE_STRENGTH","3")
 design.set_property("spare_P33","DRIVE_STRENGTH","3")
-design.set_property("usbDTR","PULL_OPTION","WEAK_PULLUP")
-design.set_property("usbRXData","PULL_OPTION","WEAK_PULLUP")
+design.set_property("usbCTS","DRIVE_STRENGTH","3")
 design.set_property("usbRXbusyLED","DRIVE_STRENGTH","3")
+design.set_property("usbTXData","DRIVE_STRENGTH","3")
 design.set_property("usbTXbusyLED","DRIVE_STRENGTH","3")
 design.set_property("vgaGreen","DRIVE_STRENGTH","3")
 design.set_property("vgaHSync","DRIVE_STRENGTH","3")

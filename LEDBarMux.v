@@ -20,11 +20,11 @@ module LedBarMux
     input [7:0] fbarSbcLeds,
     input [1:0]	sw,
 //    input   ram_cs,
-    input       pll0_25MHz,
+    input       pll0_50MHz,
     output reg [7:0] LEDoutData
     );
 
-always @(posedge pll0_25MHz) begin
+always @(posedge pll0_50MHz) begin
     case(sw)
         2'b00:      LEDoutData = ~cpuDO;
         2'b01:      LEDoutData = ~cpuDI;

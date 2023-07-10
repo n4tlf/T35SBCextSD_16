@@ -79,6 +79,7 @@ entity T80s is
 	port(
 		RESET_n		: in std_logic;
 		CLK_n		: in std_logic;
+--		CEN			: in std_logic;		-- line added per Jeff
 		WAIT_n		: in std_logic;
 		INT_n		: in std_logic;
 		NMI_n		: in std_logic;
@@ -99,7 +100,7 @@ end T80s;
 
 architecture rtl of T80s is
 
-	signal CEN			: std_logic;
+	signal CEN			: std_logic;		-- commented out per Jeff
 	signal IntCycle_n	: std_logic;
 	signal NoRead		: std_logic;
 	signal Write		: std_logic;
@@ -110,7 +111,7 @@ architecture rtl of T80s is
 
 begin
 
-	CEN <= '1';
+	CEN <= '1';							-- commented out per Jeff
 
 	u0 : T80
 		generic map(

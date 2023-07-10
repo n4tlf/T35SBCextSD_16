@@ -15,7 +15,7 @@
 
 module  ClockMux(
     input           MHz2,
-    input           MHz25,
+    input           MHz50,
     input           KHz31,
     input           Hz250,
     input           pll0_250MHz,
@@ -25,7 +25,7 @@ module  ClockMux(
 
 always @(posedge pll0_250MHz) begin
     case(sw)
-        2'b11:      cpuclk = MHz25;
+        2'b11:      cpuclk = MHz50;
         2'b10:      cpuclk = KHz31;
         2'b01:      cpuclk = MHz2;
         default:    cpuclk = Hz250;   
