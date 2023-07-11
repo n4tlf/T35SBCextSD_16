@@ -61,7 +61,7 @@ clkcpu <=  cpuClock;
 -- ____________________________________________________________________________________
 -- CPU CHOICE GOES HERE
 cpu1 : entity work.t80s
-generic map(mode => 0, t2write => 0, iowait => 1)
+generic map(mode => 0, t2write => 1, iowait => 1)
 port map(
 	reset_n 	=> n_reset,
 	clk_n 	=> cpuClock,
@@ -102,6 +102,8 @@ end if;
 
 end if;
 end process;
+
+
 
 
 end;

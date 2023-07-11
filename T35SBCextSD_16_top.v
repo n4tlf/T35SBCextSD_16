@@ -461,7 +461,7 @@ assign seg7 = 7'b0001110;               // The letter "F", Top segment is LSB
 assign seg7_dp = !(n_resetLatch & counter[18]); // Tick to show activity
 assign cpuClkOut_P19 = Clkcpu;
 
-assign  diagLED = cpuClock;
+assign  diagLED = cpuClock;         //clkEn;                //cpuClock;
 
 assign spare_P1  = usbUARTerror;
 assign spare_P17 = usbByteRcvd;
@@ -689,10 +689,35 @@ always @(posedge pll0_2MHz)
     end
 
 /****************************************************************************
+*       CPU Clock Generator
+****************************************************************************/    
+
+    reg     [31:0]  cpuClkDiv;
+    reg             clkEn;
+ //  wire            maxClk;
+    
+    parameter  maxClk = (5);
+    
+    always @(posedge pll0_50MHz)
+    begin
+        if(cpuClkDiv >= maxClk)
+            begin
+                clkEn <= !clkEn;
+                cpuClkDiv <= 32'b0;
+            end
+         else
+            begin
+                cpuClkDiv <= cpuClkDiv + 32'b1;
+            end
+    end
+    
+    
+/****************************************************************************
 *     Z80 microcomputer module  (Z80 top module) includes CPU clock divider *
 ****************************************************************************/
  microcomputer(
-		.n_reset    (n_reset),              // INPUT  LOW to reset
+        
+        .n_reset    (n_reset),              // INPUT  LOW to reset
 		.clk        (cpuClock),
 		
 		.n_wr       (z80_n_wr),
@@ -784,7 +809,8 @@ memAdrDecoder  mem_cs(
 *   Boot ROM for Z80 CPU                                                            *
 ************************************************************************************/     
 rom   #(.ADDR_WIDTH(14),                    // set address width for larger ROMs
-	.RAM_INIT_FILE("SBC-MON2_4+4K+4K.inithex"))
+//	.RAM_INIT_FILE("SBC-MON2_4+4K+4K.inithex"))
+	.RAM_INIT_FILE("SBC-MON3_4+4K+4K.inithex"))
     sbc_rom (
     .address    (romAddress[13:0]),     //(cpuAddress[10:0]),
 	.clock      (cpuClock),
@@ -1102,7 +1128,7 @@ ShiftReg    usbTXdelay(
 *           From opencores                                                  *
 ****************************************************************************/
 uart  usbuart(
-    .clk                (pll0_50MHz),		// The master clock for this module 50MHz
+    .clk                (pll0_50MHz),		// The master clock for this module 25MHz
     .rst                (!n_reset),     // Synchronous reset.
     .rx 				(usbRXData),		// UART Input - Incoming serial line
     .tx 				(usbTXData),	    // UART output - Outgoing serial line
