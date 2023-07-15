@@ -41,7 +41,7 @@ module cpuDIMux
     input   reset_cs,
     input   rom_cs,
     input   ram_cs,
-    input   inPortcon_cs,
+//    input   inPortcon_cs,
     input   inLED_cs,
     input   iobyteIn_cs,
     input   usbStat_cs,
@@ -68,8 +68,8 @@ always @(posedge pll0_250MHz) begin
         outData <= 8'h00;           // until at ROM @ F000
    else if (ide_cs)
         outData <= s100DataIn;
-    else if(inPortcon_cs)
-        outData <= s100DataIn;
+//    else if(inPortcon_cs)
+//        outData <= s100DataIn;
     else if (ram_cs)
         outData <= ramaData;
     else if (inLED_cs)

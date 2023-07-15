@@ -394,7 +394,6 @@ module  T35SBCextSD_16_top(
     wire    endsync;
     wire    busin;              // active high bus in for S100
     wire    pstval;             // ps trobe value
-//    wire    pdbin;              // pDBIN FF output
     wire    psync;              // S100 pSync
     wire    io_output;          // IO OUTPUT signal
     wire    n_pWR;
@@ -458,15 +457,15 @@ module  T35SBCextSD_16_top(
 
 assign n_reset = s100_n_RESET;
 assign seg7 = 7'b0001110;               // The letter "F", Top segment is LSB
-assign seg7_dp = !(n_resetLatch & counter[18]); // Tick to show activity
+assign seg7_dp = !(n_resetLatch & counter[20]); // Tick to show activity
 assign cpuClkOut_P19 = Clkcpu;
 
-assign  diagLED = cpuClock;         //clkEn;                //cpuClock;
+assign  diagLED = cpuClock;
 
-assign spare_P1  = usbUARTerror;
-assign spare_P17 = usbByteRcvd;
-assign spare_P32 = usbBusyRcvg;                          
-assign spare_P33 = usbDataReady;
+assign spare_P1  = !pstval;                  //usbUARTerror;
+assign spare_P17 = !busin;                  //ByteRcvd;
+assign spare_P32 = !busin;                  //usbBusyRcvg;                          
+assign spare_P33 = pDBIN;                   //usbDataReady;
 assign usbRXbusyLED = !usbByteRcvd;
 assign usbTXbusyLED = !usbUARTbusy;
 assign usbCTS       = 1'b1;
@@ -510,7 +509,7 @@ assign ps2DataIn_cs = ps2Data_cs & s100_pDBIN;
 assign ps2kybdData[7] = 1'b0;           // keyboard data Port 3, test bit 7
 assign ps2StatIn[7:1] = 7'b0;           // keyboard status Port 2
 
-assign vgaRamReadData = vgaRam_cs & memRD & !pDBIN;
+assign vgaRamReadData = vgaRam_cs & memRD & pDBIN;
 assign vgaRamWriteData = vgaRam_cs & memWR & !n_pWR;
 
 /************************************************************************************
@@ -541,7 +540,7 @@ assign biData_OE[7] = biOutEN;      // LOW enables Bidirectional Data OUT 7
 assign out8255_n_cs = !(ide8255_cs);                 // to 8255 chip select (pin 6)
 assign idePorts_n_rd = (outIDE_n_rd | out8255_n_cs); // from 8255 to CPU (IN) bfr U27
 assign idePorts_n_wr = (outIDE_n_wr | out8255_n_cs); // to 8255 from CPU (OUT) bfr U24
-assign outIDE_n_rd = !(s100_sINP & !pDBIN);          // to 8255 RD* (pin 5)
+assign outIDE_n_rd = !(s100_sINP & pDBIN);          // to 8255 RD* (pin 5)
 assign outIDE_n_wr = !(sOUT & !n_pWR);               // to 8255 WR* (pin 36)
 
 /************************************************************************************
@@ -609,7 +608,7 @@ assign inPtrStat[7] = 1'b1;
 
 //////////////////////////////////////  FIXED S100 SIGNALS HERE /////////////////////
 // s100_pDBIN created by read strobe FF below
-assign s100_pDBIN = !pDBIN;
+assign s100_pDBIN = pDBIN;
 assign z80_n_wait = s100_xrdy & s100_rdy & boardWait;      // Z80 Wait = low to wait
 assign s100_pSYNC = psync;
 assign s100_pSTVAL = pstval;
@@ -994,7 +993,7 @@ dff3     iorqlatch(
 /********************************************************************************
 *   pSYNC End latch FF                                                          *
 ********************************************************************************/        
-dff3     endpsync(          // was dff
+dff3     endpsync(
         .clk        (cpuClock),
         .pst_n      (!psyncstrt),
         .clr_n      (1'b1),     
@@ -1005,20 +1004,20 @@ dff3     endpsync(          // was dff
 /********************************************************************************
 *   Read Strobe latch FF    Output creates/latches pDBIN signal                 *
 ********************************************************************************/
-dff2     readstrobe(                // was dff2
+dff3     readstrobe(
         .clk        (!pstval),
-//        .pst_n      (1'b1),
-        .clr_n      (busin),     
-        .din        (busin),
+        .pst_n      (1'b1),
+        .clr_n      (!busin),     
+        .din        (!busin),
         .q          (pDBIN)
         );
 
 /********************************************************************************
 *   RESET Latch FF      Output drives Active LED and Control Out mux            *
 ********************************************************************************/        
-dff3     resetLatch(                // was dff
+dff3     resetLatch(
         .clk        (cpuClock),
-        .pst_n      (n_reset),          // was(1'b1),
+        .pst_n      (n_reset),
         .clr_n      (1'b1),     
         .din        (1'b1),
         .q          (n_resetLatch)
@@ -1027,7 +1026,7 @@ dff3     resetLatch(                // was dff
 /********************************************************************************
 *   S100 HOLD IN (busreq) Latch FF  Driven from S100 HOLD pin                   *
 ********************************************************************************/        
-dff3     holdInLatch(               // was dff
+dff3     holdInLatch(
         .clk        (cpuClock),
         .pst_n      (1'b1),
         .clr_n      (1'b1),     
@@ -1038,7 +1037,7 @@ dff3     holdInLatch(               // was dff
 /********************************************************************************
 *   S100 HLDAout (busak) Latch FF  Outputs HLDA to disable Address and Status   *
 ********************************************************************************/        
-dff3     HLDAoutLatch(              // was dff
+dff3     HLDAoutLatch(
         .clk        (!cpuClock),
         .pst_n      (1'b1),
         .clr_n      (!z80_n_busak),     
@@ -1047,9 +1046,9 @@ dff3     HLDAoutLatch(              // was dff
         );
 
 /********************************************************************************
-*                   *
+*        Control Disable Latch           										*
 ********************************************************************************/        
-dff3     ctlDisableLatch(       //was dff
+dff3     ctlDisableLatch(
         .clk        (cpuClock),
         .pst_n      (1'b1),
         .clr_n      (1'b1),     
@@ -1612,7 +1611,7 @@ always @(posedge pll0_250MHz)
 
 //////////////////////////////////////////////////////////////////////////
 spi_master    
-    #(.slaves(1),
+    #(.slaves(4),
 	 .d_width(8))
         sdSPI(
         .clock      (!SDLocalClk),               // system clock
