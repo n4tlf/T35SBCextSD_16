@@ -672,7 +672,7 @@ assign debugReg[7] = s100_sOUT;
 ****************************************************************************/
 always @(posedge pll0_50MHz)
     begin
-        MHz25 <= !MHz25;
+        MHz25 <= ~MHz25;
     end
 
 /****************************************************************************
@@ -809,7 +809,8 @@ memAdrDecoder  mem_cs(
 ************************************************************************************/     
 rom   #(.ADDR_WIDTH(14),                    // set address width for larger ROMs
 //	.RAM_INIT_FILE("SBC-MON2_4+4K+4K.inithex"))
-	.RAM_INIT_FILE("SBC-MON3_4+4K+4K.inithex"))
+//	.RAM_INIT_FILE("SBC-MON3_4+4K+4K.inithex"))
+	.RAM_INIT_FILE("SBC-MON_ABCD.inithex"))
     sbc_rom (
     .address    (romAddress[13:0]),     //(cpuAddress[10:0]),
 	.clock      (cpuClock),
@@ -1127,7 +1128,7 @@ ShiftReg    usbTXdelay(
 *           From opencores                                                  *
 ****************************************************************************/
 uart  usbuart(
-    .clk                (pll0_50MHz),		// The master clock for this module 25MHz
+    .clk                (pll0_50MHz),		// The master clock for this module 50MHz
     .rst                (!n_reset),     // Synchronous reset.
     .rx 				(usbRXData),		// UART Input - Incoming serial line
     .tx 				(usbTXData),	    // UART output - Outgoing serial line

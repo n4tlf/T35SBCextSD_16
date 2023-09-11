@@ -24,6 +24,9 @@
 
 //NOTE:  This has been modified by TFOX to comment out one of the tx drivers
 //          at lines 90 and 94, which caused errors
+//      9/10/23:  Also modified to fix intermitent RX data garbled by
+//          adding a register to the rx input that now feeds rx_in
+
 module uart(
     input clk, 					// The master clock for this module
     input rst, 					// Synchronous reset.
@@ -40,9 +43,15 @@ module uart(
 	 input  data_read
 	);
 
-//    parameter CLOCK_DIVIDE = ;  // clock rate (50MHz) / (baud rate (1200) * 4)
+    
+//parameter CLOCK_DIVIDE = 108;     // 115,200 baud clock rate (50MHz) / (baud rate (115,200) * 4)
+//parameter CLOCK_DIVIDE = 217;     // 57600 baud clock rate (50MHz) / (baud rate (57,60000) * 4)
+//parameter CLOCK_DIVIDE = 325;  // clock rate (50Mhz) / (baud rate (38,400) * 4)
+//parameter CLOCK_DIVIDE = 651;       //651; // clock rate (50Mhz) / (baud rate (19,200) * 4)
 parameter CLOCK_DIVIDE = 1303;       //1303; // clock rate (50Mhz) / (baud rate (9600) * 4)
-//  parameter CLOCK_DIVIDE = 325;  // clock rate (50Mhz) / (baud rate (38400) * 4)
+//parameter CLOCK_DIVIDE = 2604;       //2604; // clock rate (50Mhz) / (baud rate (4800) * 4)
+
+
 
 // States for the receiving state machine.
 // These are just constants, not parameters to override.
@@ -54,8 +63,8 @@ parameter RX_DELAY_RESTART = 4;
 parameter RX_ERROR = 5;
 parameter RX_RECEIVED = 6;
 
-parameter FLAG_HIGH = 1;
-parameter FLAG_LOW = 0;
+//parameter FLAG_HIGH = 1;
+//parameter FLAG_LOW = 0;
 
 // States for the transmitting state machine.
 // Constants - do not override.
@@ -63,8 +72,8 @@ parameter TX_IDLE = 0;
 parameter TX_SENDING = 1;
 parameter TX_DELAY_RESTART = 2;
 
-reg [10:0] rx_clk_divider = CLOCK_DIVIDE;
-reg [10:0] tx_clk_divider = CLOCK_DIVIDE;
+reg [11:0] rx_clk_divider = CLOCK_DIVIDE;
+reg [11:0] tx_clk_divider = CLOCK_DIVIDE;
 
 reg [2:0] recv_state = RX_IDLE;
 reg [5:0] rx_countdown;
@@ -73,6 +82,8 @@ reg [7:0] rx_data;
 
 reg  my_recv_state = 0;
 reg  my_data_read_state = 0;
+
+reg  rx_in;
 
 reg tx_out = 1'b1;
 reg [1:0] tx_state = TX_IDLE;
@@ -93,6 +104,11 @@ assign is_transmitting = tx_state != TX_IDLE;
 
 
 assign tx = tx_out;
+
+always @(posedge clk) begin
+    rx_in = rx;
+    end
+
 
 always @(posedge clk) begin
 	if (rst) begin
@@ -127,7 +143,7 @@ always @(posedge clk) begin
 //				my_recv_state = 0;
 			// A low pulse on the receive line indicates the
 			// start of data.
-			if (!rx) begin
+			if (!rx_in) begin
 				// Wait half the period - should resume in the
 				// middle of this first pulse.
 				rx_clk_divider = CLOCK_DIVIDE;
@@ -138,7 +154,7 @@ always @(posedge clk) begin
 		RX_CHECK_START: begin
 			if (!rx_countdown) begin
 				// Check the pulse is still there
-				if (!rx) begin
+				if (!rx_in) begin
 					// Pulse still there - good
 					// Wait the bit period to resume half-way
 					// through the first bit.
@@ -157,7 +173,7 @@ always @(posedge clk) begin
 				// Should be half-way through a bit pulse here.
 				// Read this bit in, wait for the next if we
 				// have more to get.
-				rx_data = {rx, rx_data[7:1]};
+				rx_data = {rx_in, rx_data[7:1]};
 				rx_countdown = 4;
 				rx_bits_remaining = rx_bits_remaining - 1;
 				recv_state = rx_bits_remaining ? RX_READ_BITS : RX_CHECK_STOP;
@@ -168,7 +184,7 @@ always @(posedge clk) begin
 				// Should resume half-way through the stop bit
 				// This should be high - if not, reject the
 				// transmission and signal an error.
-				recv_state = rx ? RX_RECEIVED : RX_ERROR;
+				recv_state = rx_in ? RX_RECEIVED : RX_ERROR;
 					
 			my_recv_state = 1;
 		end
